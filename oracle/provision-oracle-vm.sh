@@ -84,6 +84,16 @@ systemctl enable --now unattended-upgrades
 echo "=== Configuring fail2ban ==="
 systemctl enable --now fail2ban
 
+echo "=== Opening Swarm firewall ports ==="
+# Allow Docker Swarm traffic from within the VCN
+iptables -I INPUT 4 -p tcp --dport 2377 -s 10.10.0.0/16 -j ACCEPT
+iptables -I INPUT 4 -p tcp --dport 7946 -s 10.10.0.0/16 -j ACCEPT
+iptables -I INPUT 4 -p udp --dport 7946 -s 10.10.0.0/16 -j ACCEPT
+iptables -I INPUT 4 -p udp --dport 4789 -s 10.10.0.0/16 -j ACCEPT
+# Persist across reboots
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq iptables-persistent
+netfilter-persistent save
+
 echo "=== Adding cluster hosts ==="
 sed -i "/phx-arm-01/d; /phx-arm-02/d; /phx-edge-01/d; /phx-x86-01/d" /etc/hosts
 cat << 'EOF' >> /etc/hosts
