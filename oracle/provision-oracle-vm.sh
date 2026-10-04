@@ -3,7 +3,18 @@
 # Usage: sudo bash provision.sh
 set -e
 
-MUSE_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF4vlTv0xPzNLxo+jMM0+TZf9IZYTSVyeD6VbJ5csSyf muse@prestonhunter.space"
+# Safety check: warn if running as ubuntu (will be locked)
+if [ "$(whoami)" = "ubuntu" ]; then
+  echo "⚠️  WARNING: You are running this as the ubuntu user."
+  echo "   This script will LOCK the ubuntu account when finished."
+  echo "   After the script completes, open a NEW SSH session as"
+  echo "   'phunter' or 'muse' to verify it works BEFORE closing this one."
+  echo ""
+  read -p "Press Enter to continue, or Ctrl+C to abort... "
+fi
+
+# Muse key = edge box key (all access goes through the edge box)
+MUSE_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILkhFIm+Mzq/+6bBAv7742HzUrL+92iTQNOKoMMo1VFS muse@phx-edge-01"
 # Add Preston's keys below (one per line)
 PHUNTER_KEYS="
 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCwIVtw02gyO/yguGEmOZIatj9faUxBf6ro1DaLmrdrA/Qc8iUjDC4/bpvkg6/d6VSXJ8WQVKfcZ3mLzU7erI0Rl37lKPhBU8e6zIiKySYj9nZTjAHV9dFhgBieuT2pW8SjT2Uqc3VMaNnk4dXDqxLxjiIvLDFYNvxDDTTGTa4J/64d16YVahqkHcAHatydbhoKeUR/Cm+6FGTrUT5Wa+PZnmURCfH9ZfrucuB9uILrxByb8hmitdknADob0bil3S5vm9toiZCYQJNMAMFnnqK4nuztAeArSyGEqg+LHmMEZpwvIbPItWFz9O60BwmcRXfMvk2n3qyTh58PVzOzxQV/ imported-openssh-key
@@ -73,7 +84,21 @@ systemctl enable --now unattended-upgrades
 echo "=== Configuring fail2ban ==="
 systemctl enable --now fail2ban
 
+echo "=== Adding cluster hosts ==="
+sed -i "/phx-arm-01/d; /phx-arm-02/d; /phx-edge-01/d; /phx-x86-01/d" /etc/hosts
+cat << 'EOF' >> /etc/hosts
+# Oracle Swarm cluster (phx-swarm-vcn)
+10.10.10.10  phx-arm-01 phx-arm-01.phx.prestonhunter.space
+10.10.10.11  phx-arm-02 phx-arm-02.phx.prestonhunter.space
+10.10.1.10   phx-edge-01 phx-edge-01.phx.prestonhunter.space
+10.10.10.12  phx-x86-01 phx-x86-01.phx.prestonhunter.space
+EOF
+
 echo "=== Done ==="
 echo "Users: muse, phunter (both with docker+sudo, key-only SSH)"
 echo "Docker: $(docker --version)"
 echo "Ubuntu user locked. Password auth disabled."
+echo ""
+echo "⚠️  IMPORTANT: If you ran this as ubuntu, DO NOT close this session yet!"
+echo "   Open a NEW SSH connection as 'phunter' or 'muse' to verify it works."
+echo "   Only close this session after confirming the new login succeeds."
